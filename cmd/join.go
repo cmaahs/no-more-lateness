@@ -35,6 +35,7 @@ var joinCmd = &cobra.Command{
 	EXAMPLE
 	  #> no-more-lateness join`,
 	Run: func(cmd *cobra.Command, args []string) {
+		attendeeAddress, _ = cmd.Flags().GetString("attendee-address")
 		joinMeetings()
 	},
 }
@@ -53,7 +54,7 @@ func joinMeetings() {
 		os.Exit(1)
 	}
 
-	out, eerr := cal.GetEvents(5)
+	out, eerr := cal.GetEvents(5, attendeeAddress)
 	if eerr != nil {
 		fmt.Println("no events")
 	}
@@ -63,6 +64,7 @@ func joinMeetings() {
 			if evt.IsMeetingSoon {
 				_ = open.Run(evt.MeetingLink.String())
 				fmt.Printf("%v,(%v),<%s>\n", evt.Description, evt.Start, evt.MeetingLink.String())
+				break
 			}
 			// fmt.Println(fmt.Sprintf("Soon: %t, Event: %s, Link: %s", evt.IsMeetingSoon, evt.Description, evt.MeetingLink.String()))
 		}
@@ -71,11 +73,9 @@ func joinMeetings() {
 }
 
 func init() {
-	rootCmd.AddCommand(viewCmd)
+	joinCmd.Flags().StringP("attendee-address", "a", "", "Specify your attendee email address")
+	joinCmd.MarkFlagRequired("attendee-address")
 
-}
-
-func init() {
 	rootCmd.AddCommand(joinCmd)
 
 }

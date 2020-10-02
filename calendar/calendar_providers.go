@@ -15,12 +15,13 @@ type MeetingEvent struct {
 	MeetingProvider string    `json:"meetingprovider"`
 	MeetingLink     url.URL   `json:"meetinglink"`
 	IsMeetingSoon   bool      `json:"ismeetingsoon"`
+	MeetingResponse string    `json:"meetingresponse"`
 }
 
 // Provider = The main interface used to describe appliances
 type Provider interface {
 	GetClient() (bool, error)
-	GetEvents(num int64) ([]MeetingEvent, error)
+	GetEvents(num int64, attendee string) ([]MeetingEvent, error)
 }
 
 //Our appliance types

@@ -29,6 +29,7 @@ var viewCmd = &cobra.Command{
 	Short: "Display a list of upcoming calendar entries",
 	Long:  `Display a list of upcoming online meeting items.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		attendeeAddress, _ = cmd.Flags().GetString("attendee-address")
 		displayMeetings()
 	},
 }
@@ -47,20 +48,23 @@ func displayMeetings() {
 		os.Exit(1)
 	}
 
-	out, eerr := cal.GetEvents(20)
+	out, eerr := cal.GetEvents(5, attendeeAddress)
 	if eerr != nil {
 		fmt.Println("no events")
 	}
 
 	if len(out) > 0 {
 		for _, evt := range out {
-			fmt.Println(fmt.Sprintf("Soon: %t, Event: %s, Link: %s", evt.IsMeetingSoon, evt.Description, evt.MeetingLink.String()))
+			fmt.Println(fmt.Sprintf("Soon: %t, Event: %s, Link: %s, Going: %s", evt.IsMeetingSoon, evt.Description, evt.MeetingLink.String(), evt.MeetingResponse))
 		}
 	}
 
 }
 
 func init() {
+	viewCmd.Flags().StringP("attendee-address", "a", "", "Specify your attendee email address")
+	viewCmd.MarkFlagRequired("attendee-address")
+
 	rootCmd.AddCommand(viewCmd)
 
 }

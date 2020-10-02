@@ -62,7 +62,7 @@ func (p *GoogleCal) GetClient() (bool, error) {
 }
 
 // GetEvents - Return the next num events
-func (p *GoogleCal) GetEvents(num int64) ([]MeetingEvent, error) {
+func (p *GoogleCal) GetEvents(num int64, attendee string) ([]MeetingEvent, error) {
 
 	eventList := []MeetingEvent{}
 	// ********* Use the client to do things... ****************
@@ -70,13 +70,13 @@ func (p *GoogleCal) GetEvents(num int64) ([]MeetingEvent, error) {
 	if err != nil {
 		log.Fatalf("Unable to retrieve Calendar client: %v", err)
 	}
-
 	t := time.Now().Add(time.Hour * -1).Format(time.RFC3339)
 	events, err := srv.Events.List("primary").ShowDeleted(false).
 		SingleEvents(true).TimeMin(t).MaxResults(num).OrderBy("startTime").Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
+
 	// fmt.Println("Upcoming events:")
 	if len(events.Items) == 0 {
 		fmt.Println("No upcoming events found.")
@@ -92,8 +92,18 @@ func (p *GoogleCal) GetEvents(num int64) ([]MeetingEvent, error) {
 				// do we care?
 			} else {
 				soon := IsMeetingSoon(item)
+				mtgResponse := ""
 				// 	_ = open.Run(url.String())
 				// 	fmt.Printf("%v,(%v),<%s>\n", item.Summary, date, url)
+				for _, att := range item.Attendees {
+					if att.Email == attendee {
+						mtgResponse = att.ResponseStatus
+						if att.ResponseStatus == "declined" {
+							soon = false
+						}
+					}
+				}
+
 				startTime, err := MeetingStartTime(item)
 				if err != nil {
 					// no action needed
@@ -104,6 +114,7 @@ func (p *GoogleCal) GetEvents(num int64) ([]MeetingEvent, error) {
 						MeetingProvider: "No Need",
 						MeetingLink:     *url,
 						IsMeetingSoon:   soon,
+						MeetingResponse: mtgResponse,
 					})
 				}
 			}
@@ -220,10 +231,10 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 	}
 	if !haveMatch {
 		// Cisco WebEx Matches
-		fmt.Println("trying webex")
+		//fmt.Println("trying webex")
 		matches = webexURLRegexp.FindAllStringSubmatch(event.Description, -1)
 		if len(matches) == 0 || len(matches[0]) == 0 {
-			fmt.Println("No matches...")
+			// fmt.Println("No matches...")
 			return nil, false
 		} else {
 
