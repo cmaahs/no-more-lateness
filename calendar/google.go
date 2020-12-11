@@ -30,6 +30,8 @@ var zoomURLRegexp = regexp.MustCompile(`https://.*?zoom\.us/(?:j/(\d+)|my/(\S+))
 var teamsURLRegexp = regexp.MustCompile(`https://.*?teams.microsoft.com/.*`)
 var webexURLRegexp = regexp.MustCompile(`https://.*?webex.com/.*j.php?.*>`)
 var zoomURLRegexpPwd = regexp.MustCompile(`https://.*?zoom\.us/j/.*pwd=(.*)`)
+var zoomDescriptionRegexpPwd = regexp.MustCompile(`Password: (.*)</span>`)
+var zoomDescriptionRegexpJustPwd = regexp.MustCompile(`Password: (.*)`)
 
 // GoogleCal - Structure to hold stuff
 type GoogleCal struct {
@@ -144,6 +146,8 @@ func MeetingStartTime(event *calendar.Event) (time.Time, error) {
 
 // MeetingURLFromEvent returns a URL if the event is a Zoom meeting.
 func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
+	var zoomPassword string
+
 	input := event.Location + " " + event.Description
 	if videoEntryPointURL, ok := conferenceVideoEntryPointURL(event); ok {
 		input = videoEntryPointURL + " " + input
@@ -158,7 +162,24 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		//return nil, false
 	} else {
 
+		fmt.Println(event.Description)
 		haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
+		if len(haspass) == 0 {
+			descPass := zoomDescriptionRegexpPwd.FindAllStringSubmatch(event.Description, -1)
+			if len(descPass) >= 1 {
+				if len(descPass[0]) >= 2 {
+					zoomPassword = strings.Split(descPass[0][1], "<")[0]
+				}
+			} else {
+				justPass := zoomDescriptionRegexpJustPwd.FindAllStringSubmatch(event.Description, -1)
+				fmt.Println(fmt.Sprintf("%#v", justPass))
+				if len(justPass) >= 1 {
+					if len(justPass[0]) >= 2 {
+						zoomPassword = justPass[0][1]
+					}
+				}
+			}
+		}
 		passcode := ""
 
 		//fmt.Println("~~~~~~~~~~~~~~~~~~~")
@@ -177,19 +198,29 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		stringURL = matches[0][0]
 
 		// If we have a meeting ID in the URL, then use zoommtg:// instead of the HTTPS URL.
+		// https://zoom.us/j/717887116?pwd%3DYnJjNHc1T1I3U0ExYmtPaityb2ZKUT09&sa=D&source=calendar&ust=1608130826369000&usg=AOvVaw0dGeXG8eUnqszYgIOqYAFV
 		if len(matches[0]) >= 2 {
 			if _, err := strconv.Atoi(matches[0][1]); err == nil {
 				if len(haspass) >= 1 {
 					if len(haspass[0]) >= 2 {
-						stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + haspass[0][1]
+						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + haspass[0][1]
+						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + haspass[0][1]
 					} else {
-						stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+						stringURL = "https://zoom.us/j/" + matches[0][1]
 					}
 				} else {
-					if passcode == "" {
-						stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+					if zoomPassword == "" {
+						if passcode == "" {
+							// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+							stringURL = "https://zoom.us/j/" + matches[0][1]
+						} else {
+							// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
+							stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passcode
+						}
 					} else {
-						stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
+						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + zoomPassword
+						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + zoomPassword
 					}
 				}
 				haveMatch = true
