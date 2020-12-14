@@ -162,7 +162,7 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		//return nil, false
 	} else {
 
-		fmt.Println(event.Description)
+		// fmt.Println(event.Description)
 		haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
 		if len(haspass) == 0 {
 			descPass := zoomDescriptionRegexpPwd.FindAllStringSubmatch(event.Description, -1)
@@ -172,7 +172,7 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 				}
 			} else {
 				justPass := zoomDescriptionRegexpJustPwd.FindAllStringSubmatch(event.Description, -1)
-				fmt.Println(fmt.Sprintf("%#v", justPass))
+				// fmt.Println(fmt.Sprintf("%#v", justPass))
 				if len(justPass) >= 1 {
 					if len(justPass[0]) >= 2 {
 						zoomPassword = justPass[0][1]
@@ -309,7 +309,7 @@ func conferenceVideoEntryPointURL(event *calendar.Event) (string, bool) {
 	}
 
 	for _, entryPoint := range event.ConferenceData.EntryPoints {
-		fmt.Println(fmt.Sprintf("ep-%s, %s", entryPoint.EntryPointType, entryPoint.Uri))
+		// fmt.Println(fmt.Sprintf("ep-%s, %s", entryPoint.EntryPointType, entryPoint.Uri))
 		if entryPoint.EntryPointType == "video" && strings.Contains(entryPoint.Uri, "zoom") {
 			return entryPoint.Uri, true
 		}

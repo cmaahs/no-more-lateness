@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/cmaahs/no-more-lateness/calendar"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -54,9 +55,30 @@ func displayMeetings() {
 	}
 
 	if len(out) > 0 {
+		table := tablewriter.NewWriter(os.Stdout)
+		// if !noHeaders {
+		table.SetHeader([]string{"START", "SOON", "EVENT", "GOING", "LINK"})
+		table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+		// }
+		table.SetAutoWrapText(false)
+		table.SetAutoFormatHeaders(true)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetCenterSeparator("")
+		table.SetColumnSeparator("")
+		table.SetRowSeparator("")
+		table.SetHeaderLine(false)
+		table.SetBorder(false)
+		table.SetTablePadding("\t") // pad with tabs
+		table.SetNoWhiteSpace(true)
 		for _, evt := range out {
-			fmt.Println(fmt.Sprintf("Soon: %t, Event: %s, Link: %s, Going: %s", evt.IsMeetingSoon, evt.Description, evt.MeetingLink.String(), evt.MeetingResponse))
+			var ml int
+			if ml = len(evt.MeetingLink.String()); ml > 60 {
+				ml = 60
+			}
+			row := []string{evt.Start.Format("2006-01-02 15:04"), fmt.Sprintf("%t", evt.IsMeetingSoon), evt.Description, evt.MeetingResponse, evt.MeetingLink.String()[0:ml]}
+			table.Append(row)
 		}
+		table.Render()
 	}
 
 }

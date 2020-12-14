@@ -5,6 +5,8 @@ go 1.15
 require (
 	github.com/Matt-Gleich/desktop v1.2.3
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mitchellh/go-ps v1.0.0
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.4.2
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
