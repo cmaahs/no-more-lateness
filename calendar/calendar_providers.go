@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/url"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 // MeetingEvent - Structure that we care about returning
@@ -22,6 +24,8 @@ type MeetingEvent struct {
 type Provider interface {
 	GetClient() (bool, error)
 	GetEvents(num int64, attendee string) ([]MeetingEvent, error)
+	GetAuthURL() string
+	GetToken() (*oauth2.Token, error)
 }
 
 //Our appliance types

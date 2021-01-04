@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/skratchdot/open-golang/open"
+
 	// "github.com/skratchdot/open-golang/open"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -30,13 +32,58 @@ var zoomURLRegexp = regexp.MustCompile(`https://.*?zoom\.us/(?:j/(\d+)|my/(\S+))
 var teamsURLRegexp = regexp.MustCompile(`https://.*?teams.microsoft.com/.*`)
 var webexURLRegexp = regexp.MustCompile(`https://.*?webex.com/.*j.php?.*>`)
 var zoomURLRegexpPwd = regexp.MustCompile(`https://.*?zoom\.us/j/.*pwd=(.*)`)
-var zoomDescriptionRegexpPwd = regexp.MustCompile(`Password: (.*)</span>`)
-var zoomDescriptionRegexpJustPwd = regexp.MustCompile(`Password: (.*)`)
+var discordURLRegexp = regexp.MustCompile(`https://discord.com/channels.*`)
+
+// var zoomDescriptionRegexpPwd = regexp.MustCompile(`Password: (.*)</span>`)
+// var zoomDescriptionRegexpJustPwd = regexp.MustCompile(`Password: (.*)`)
 
 // GoogleCal - Structure to hold stuff
 type GoogleCal struct {
 	Provider string
 	Client   *http.Client
+	AuthURL  string
+}
+
+// GetAuthURL - Return the AuthURL
+func (p *GoogleCal) GetAuthURL() string {
+
+	return p.AuthURL
+
+}
+
+// GetToken - Get Oauth 2.0 Token
+func (p *GoogleCal) GetToken() (*oauth2.Token, error) {
+
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Println("No current user")
+		os.Exit(1)
+	}
+
+	directory := filepath.Join(usr.HomeDir, ".config", "google", "no-more-lateness.json")
+	config, err := readGoogleClientConfigFromFile(directory)
+	if err != nil && err.Error() != "oauth2/google: no credentials found" {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Your browser is about to open. When it does, please authorize the application when prompted and paste the token it gives you below.")
+	time.Sleep(5 * time.Second)
+	open.Run(p.AuthURL)
+
+	fmt.Print("Authorization token: ")
+	var authCode string
+	if _, err := fmt.Scan(&authCode); err != nil {
+		return &oauth2.Token{}, errors.WithStack(err)
+	}
+
+	tok, err := config.Exchange(context.TODO(), authCode)
+	if err != nil {
+		return &oauth2.Token{}, err
+		// log.Fatalf("Unable to retrieve token from web: %v", err)
+	}
+	return tok, nil
+
 }
 
 // GetClient - Apply DNS updates to Google DNS Hosted Zone
@@ -56,6 +103,8 @@ func (p *GoogleCal) GetClient() (bool, error) {
 	}
 
 	client := getClient(config)
+
+	p.AuthURL = config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
 	p.Client = client
 
@@ -146,8 +195,9 @@ func MeetingStartTime(event *calendar.Event) (time.Time, error) {
 
 // MeetingURLFromEvent returns a URL if the event is a Zoom meeting.
 func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
-	var zoomPassword string
+	// var zoomPassword string
 
+	// fmt.Println(fmt.Sprintf("EL: %s", event.Location))
 	input := event.Location + " " + event.Description
 	if videoEntryPointURL, ok := conferenceVideoEntryPointURL(event); ok {
 		input = videoEntryPointURL + " " + input
@@ -163,23 +213,27 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 	} else {
 
 		// fmt.Println(event.Description)
-		haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
-		if len(haspass) == 0 {
-			descPass := zoomDescriptionRegexpPwd.FindAllStringSubmatch(event.Description, -1)
-			if len(descPass) >= 1 {
-				if len(descPass[0]) >= 2 {
-					zoomPassword = strings.Split(descPass[0][1], "<")[0]
-				}
-			} else {
-				justPass := zoomDescriptionRegexpJustPwd.FindAllStringSubmatch(event.Description, -1)
-				// fmt.Println(fmt.Sprintf("%#v", justPass))
-				if len(justPass) >= 1 {
-					if len(justPass[0]) >= 2 {
-						zoomPassword = justPass[0][1]
-					}
-				}
-			}
-		}
+		// haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
+		haspass := zoomURLRegexpPwd.FindAllStringSubmatch(input, -1)
+		// TODO: (REMOVE) this no longer works, because Zoom now encrypts the password for URI inclusion
+		//       there is no way to calulate this from the base password.
+		// if len(haspass) == 0 {
+		// 	// descPass := zoomDescriptionRegexpPwd.FindAllStringSubmatch(event.Description, -1)
+		// 	descPass := zoomDescriptionRegexpPwd.FindAllStringSubmatch(input, -1)
+		// 	if len(descPass) >= 1 {
+		// 		if len(descPass[0]) >= 2 {
+		// 			zoomPassword = strings.Split(descPass[0][1], "<")[0]
+		// 		}
+		// 	} else {
+		// 		justPass := zoomDescriptionRegexpJustPwd.FindAllStringSubmatch(event.Description, -1)
+		// 		// fmt.Println(fmt.Sprintf("%#v", justPass))
+		// 		if len(justPass) >= 1 {
+		// 			if len(justPass[0]) >= 2 {
+		// 				zoomPassword = justPass[0][1]
+		// 			}
+		// 		}
+		// 	}
+		// }
 		passcode := ""
 
 		//fmt.Println("~~~~~~~~~~~~~~~~~~~")
@@ -197,8 +251,6 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		// By default, match the whole URL.
 		stringURL = matches[0][0]
 
-		// If we have a meeting ID in the URL, then use zoommtg:// instead of the HTTPS URL.
-		// https://zoom.us/j/717887116?pwd%3DYnJjNHc1T1I3U0ExYmtPaityb2ZKUT09&sa=D&source=calendar&ust=1608130826369000&usg=AOvVaw0dGeXG8eUnqszYgIOqYAFV
 		if len(matches[0]) >= 2 {
 			if _, err := strconv.Atoi(matches[0][1]); err == nil {
 				if len(haspass) >= 1 {
@@ -210,18 +262,18 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 						stringURL = "https://zoom.us/j/" + matches[0][1]
 					}
 				} else {
-					if zoomPassword == "" {
-						if passcode == "" {
-							// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
-							stringURL = "https://zoom.us/j/" + matches[0][1]
-						} else {
-							// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
-							stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passcode
-						}
+					// if zoomPassword == "" {
+					if passcode == "" {
+						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+						stringURL = "https://zoom.us/j/" + matches[0][1]
 					} else {
-						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + zoomPassword
-						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + zoomPassword
+						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
+						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passcode
 					}
+					// } else {
+					// 	// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + zoomPassword
+					// 	stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + zoomPassword
+					// }
 				}
 				haveMatch = true
 			}
@@ -266,7 +318,7 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		matches = webexURLRegexp.FindAllStringSubmatch(event.Description, -1)
 		if len(matches) == 0 || len(matches[0]) == 0 {
 			// fmt.Println("No matches...")
-			return nil, false
+			// return nil, false
 		} else {
 
 			// haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
@@ -274,6 +326,41 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 			// By default, match the whole URL.
 			stringURL = matches[0][0]
 			stringURL = strings.TrimSuffix(stringURL, ">")
+
+			haveMatch = true
+			// If we have a meeting ID in the URL, then use zoommtg:// instead of the HTTPS URL.
+			// if len(matches[0]) >= 2 {
+			// 	if _, err := strconv.Atoi(matches[0][1]); err == nil {
+			// 		//if len(haspass) >= 1 {
+			// 		// if len(haspass[0]) >= 2 {
+			// 		// 	stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + haspass[0][1]
+			// 		// } else {
+			// 		// 	stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+			// 		// }
+			// 		//} else {
+			// 		stringURL = "teams://teams.microsoft.com/join?confno=" + matches[0][1]
+			// 		//}
+			// 		haveMatch = true
+			// 	}
+			// }
+		}
+	}
+
+	if !haveMatch {
+		// Discord Matches
+		// fmt.Println("trying discord")
+		input := event.Location + " " + event.Description
+		matches = discordURLRegexp.FindAllStringSubmatch(input, -1)
+		if len(matches) == 0 || len(matches[0]) == 0 {
+			// fmt.Println("No matches...")
+			return nil, false
+		} else {
+
+			// haspass := zoomURLRegexpPwd.FindAllStringSubmatch(event.Description, -1)
+
+			// By default, match the whole URL.
+			stringURL = matches[0][0]
+			stringURL = strings.Replace(stringURL, "https", "discord", 1)
 
 			haveMatch = true
 			// If we have a meeting ID in the URL, then use zoommtg:// instead of the HTTPS URL.
