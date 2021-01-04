@@ -28,10 +28,11 @@ import (
 const googleCalendarDateTimeFormat = time.RFC3339
 
 // https://www.google.com/url?q=https://teams.microsoft.com/l/meetup-join/19%253ameeting_MTU0YzY5MTgtNDZjNy00MjM4LTg5MzYtYTgxZDk0MzJjYzAx%2540thread.v2/0?context%3D%257b%2522Tid%2522%253a%2522e0793d39-0939-496d-b129-198edd916feb%2522%252c%2522Oid%2522%253a%25225a399f46-82c6-4606-84bf-a154d4b60548%2522%257d&sa=D&source=calendar&ust=1600608611212000&usg=AOvVaw2TYDQ2tagscOoJNxkpzKRw
+// https://zoom.us/j/8415370125?pwd=V0FCaURjRU5GVW5pd0lKak0yTUd5Zz09
 var zoomURLRegexp = regexp.MustCompile(`https://.*?zoom\.us/(?:j/(\d+)|my/(\S+))`)
 var teamsURLRegexp = regexp.MustCompile(`https://.*?teams.microsoft.com/.*`)
 var webexURLRegexp = regexp.MustCompile(`https://.*?webex.com/.*j.php?.*>`)
-var zoomURLRegexpPwd = regexp.MustCompile(`https://.*?zoom\.us/j/.*pwd=(.*)`)
+var zoomURLRegexpPwd = regexp.MustCompile(`https://.*?zoom\.us/j/.*pwd=(\S+)`)
 var discordURLRegexp = regexp.MustCompile(`https://discord.com/channels.*`)
 
 // var zoomDescriptionRegexpPwd = regexp.MustCompile(`Password: (.*)</span>`)
@@ -182,7 +183,7 @@ func IsMeetingSoon(event *calendar.Event) bool {
 		return false
 	}
 	minutesUntilStart := time.Until(startTime).Minutes()
-	return -5 < minutesUntilStart && minutesUntilStart < 5
+	return -50 < minutesUntilStart && minutesUntilStart < 5
 }
 
 // MeetingStartTime returns the calendar event's start time.
@@ -234,22 +235,28 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		// 		}
 		// 	}
 		// }
-		passcode := ""
+		// passcode := ""
 
 		//fmt.Println("~~~~~~~~~~~~~~~~~~~")
 		//fmt.Println(fmt.Sprintf("%#v", event.ConferenceData))
-		if event.ConferenceData != nil {
-			//fmt.Println(event.ConferenceData.ConferenceId)
-			//fmt.Println(event.ConferenceData.Notes)
-			if strings.Contains(event.ConferenceData.Notes, "Passcode") {
-				passcode = strings.TrimSpace(strings.Split(event.ConferenceData.Notes, ":")[1])
-				// fmt.Println(pc)
-			}
-		}
+		// if event.ConferenceData != nil {
+		// 	//fmt.Println(event.ConferenceData.ConferenceId)
+		// 	//fmt.Println(event.ConferenceData.Notes)
+		// 	if strings.Contains(event.ConferenceData.Notes, "Passcode") {
+		// 		passcode = strings.TrimSpace(strings.Split(event.ConferenceData.Notes, ":")[1])
+		// 		// fmt.Println(pc)
+		// 	}
+		// }
 		//fmt.Println(event.ConferenceData)
 		//fmt.Println("~~~~~~~~~~~~~~~~~~~")
 		// By default, match the whole URL.
 		stringURL = matches[0][0]
+
+		// fmt.Println(fmt.Sprintf("matches: %d", len(matches[0])))
+		// fmt.Println(fmt.Sprintf("matches: %s", matches[0]))
+		// fmt.Println(fmt.Sprintf("matches: %s", matches[0][0]))
+		// fmt.Println(fmt.Sprintf("matches: %s", matches[0][1]))
+		// fmt.Println(fmt.Sprintf("matches: %s", matches[0][2]))
 
 		if len(matches[0]) >= 2 {
 			if _, err := strconv.Atoi(matches[0][1]); err == nil {
@@ -263,19 +270,23 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 					}
 				} else {
 					// if zoomPassword == "" {
-					if passcode == "" {
-						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
-						stringURL = "https://zoom.us/j/" + matches[0][1]
-					} else {
-						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
-						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passcode
-					}
+					// if passcode == "" {
+					// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
+					stringURL = "https://zoom.us/j/" + matches[0][1]
+					// } else {
+					// 	// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + passcode
+					// 	stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passcode
+					// }
 					// } else {
 					// 	// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + zoomPassword
 					// 	stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + zoomPassword
 					// }
 				}
 				haveMatch = true
+				// stringURL = strings.Replace(stringURL, "<", "", 1)
+				// stringURL = strings.Replace(stringURL, ">", "", 1)
+			} else {
+				fmt.Println("Error AtoI")
 			}
 		}
 	}

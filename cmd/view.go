@@ -80,8 +80,8 @@ func displayMeetings() {
 		nextMeeting := 0
 		for _, evt := range out {
 			var ml int
-			if ml = len(evt.MeetingLink.String()); ml > 60 {
-				ml = 60
+			if ml = len(evt.MeetingLink.String()); ml > 80 {
+				ml = 80
 			}
 			row := []string{evt.Start.Format("2006-01-02 15:04"), fmt.Sprintf("%t", evt.IsMeetingSoon), evt.Description, evt.MeetingResponse, evt.MeetingLink.String()[0:ml]}
 			minutesUntilStart := time.Until(evt.Start).Minutes()
