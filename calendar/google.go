@@ -183,7 +183,7 @@ func IsMeetingSoon(event *calendar.Event) bool {
 		return false
 	}
 	minutesUntilStart := time.Until(startTime).Minutes()
-	return -50 < minutesUntilStart && minutesUntilStart < 5
+	return -5 < minutesUntilStart && minutesUntilStart < 5
 }
 
 // MeetingStartTime returns the calendar event's start time.
