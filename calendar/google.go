@@ -183,7 +183,7 @@ func IsMeetingSoon(event *calendar.Event) bool {
 		return false
 	}
 	minutesUntilStart := time.Until(startTime).Minutes()
-	return -5 < minutesUntilStart && minutesUntilStart < 5
+	return -8 < minutesUntilStart && minutesUntilStart < 3
 }
 
 // MeetingStartTime returns the calendar event's start time.
@@ -251,7 +251,7 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 		//fmt.Println("~~~~~~~~~~~~~~~~~~~")
 		// By default, match the whole URL.
 		stringURL = matches[0][0]
-
+		// fmt.Println("~~~~~~~~~~~~~~~~~~~")
 		// fmt.Println(fmt.Sprintf("matches: %d", len(matches[0])))
 		// fmt.Println(fmt.Sprintf("matches: %s", matches[0]))
 		// fmt.Println(fmt.Sprintf("matches: %s", matches[0][0]))
@@ -263,7 +263,11 @@ func MeetingURLFromEvent(event *calendar.Event) (*url.URL, bool) {
 				if len(haspass) >= 1 {
 					if len(haspass[0]) >= 2 {
 						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1] + "&pwd=" + haspass[0][1]
-						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + haspass[0][1]
+						passWd := haspass[0][1]
+						if strings.Contains(passWd, "<") {
+							passWd = strings.SplitN(passWd, "<", 2)[0]
+						}
+						stringURL = "https://zoom.us/j/" + matches[0][1] + "?pwd=" + passWd
 					} else {
 						// stringURL = "zoommtg://zoom.us/join?confno=" + matches[0][1]
 						stringURL = "https://zoom.us/j/" + matches[0][1]
